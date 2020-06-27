@@ -16,7 +16,9 @@ We will use pthread API ([POSIX Threads](https://en.wikipedia.org/wiki/POSIX_Thr
 
 #### 2. Events to be parallelized
 #### 2.1 Printer Added
-We discover printers via [Avahi](https://www.avahi.org/), which facilitates service discovery on a local network via the DNS-SD/mDNS protocol. As the daemon starts, it creates AvahiClient, which further creates service browsers for us, to browse for services of specific types for us. With each service discovered a callback function `resolve_callback` is called, it examines the TXT record of the printer, and further calls `examine_discovered_printer_record`, which calls `matched_filters` to check for `BrowseFilter` line match in cups-browsed.conf. Also `examine_discovered_printer_record` checks whether we have a queue for that printer already, if yes, it correctly update the entry, else calls `create_remote_printer_entry` to add the discovered printer to the list of `remote_printers` and to actually create the printer queue, `recheck_timer` calls `update_cups_queues` when necessary. 
+We discover printers via [Avahi](https://www.avahi.org/), which facilitates service discovery on a local network via the DNS-SD/mDNS protocol. As the daemon starts, it creates AvahiClient, which further creates service browsers for us, to browse for services of specific types for us. With each service discovered a callback function `resolve_callback()` is called, it examines the TXT record of the printer, and further calls `examine_discovered_printer_record()`, which calls `matched_filters()` to check for `BrowseFilter` line match in cups-browsed.conf. Also `examine_discovered_printer_record()` checks whether we have a queue for that printer already, if yes, it correctly update the entry, else calls `create_remote_printer_entry()` to add the discovered printer to the list of `remote_printers` and to actually create the printer queue, `recheck_timer()` calls `update_cups_queues()` when necessary. 
+
+![DIAGRAM](https://docs.google.com/drawings/d/e/2PACX-1vSfBUXcKllh4t-eU9Y-QEoKBuC2ZecyoaBLPFs5GNC8rTiqEMPGWpJcFKmKUwVyw_gg_boXc3YGxnZg/pub?w=890&h=589)
 
 #### 2.2 Printer Deleted
 
