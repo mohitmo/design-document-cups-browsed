@@ -32,6 +32,7 @@ We discover printers via [Avahi](https://www.avahi.org/), which facilitates serv
 </p>
 
 
+
 **How will we parallelize this event**
 
 To parallelize queue creation for a printer, we will create threads from `browse_callback()`, so that for every discovered instance of a printer `resolve_callback()` runs in a separate thread. This means that for each instance of a printer, its call of `resolve_callback()`, `examine_discovered_printer_record()`, `matched_filters()` and `create_remote_printer_entry()` will run in a separate thread from other instances.
@@ -50,6 +51,6 @@ To parallelize it, we will take out the code in `browse_callback()` and create a
 
 #### 3. How we will handle synchronization
 
- [Thread synchronization]([https://en.wikipedia.org/wiki/Synchronization_(computer_science)#:~:text=Thread%20synchronization%20is%20defined%20as,controlled%20by%20using%20synchronization%20techniques.](https://en.wikipedia.org/wiki/Synchronization_(computer_science)#:~:text=Thread synchronization is defined as,controlled by using synchronization techniques.) is defined as a mechanism which ensures that two or more concurrent [processes](https://en.wikipedia.org/wiki/Process_(computer_science)) or [threads](https://en.wikipedia.org/wiki/Thread_(computer_science)) do not simultaneously execute some particular program segment known as [critical section](https://en.wikipedia.org/wiki/Critical_section). Here critical section will be the global variables, i.e. we don't want that two or more threads simultaneously try to update the global variables, and if this happens integrity of the data will be compromised.
+Thread synchronization is defined as a mechanism which ensures that two or more concurrent [processes](https://en.wikipedia.org/wiki/Process_(computer_science)) or [threads](https://en.wikipedia.org/wiki/Thread_(computer_science)) do not simultaneously execute some particular program segment known as [critical section](https://en.wikipedia.org/wiki/Critical_section). Here critical section will be the global variables, i.e. we don't want that two or more threads simultaneously try to update the global variables, and if this happens integrity of the data will be compromised.
 
 To avoid all this we need to make sure that while updating some global variable, only one thread is doing that update and pthread API provides many useful tools, e.g. mutexes (`pthread_mutex_t`) and read-write Locks (`pthread_rwlock_t`). To prevent other thread from updating these variables, a thread can lock the mutex/read-write locks and when the update is complete unlock them. If a thread tries to lock an already locked mutex, it gets blocked until that mutex is unlocked by the thread that locked the mutex. As soon as it gets unlocked other thread can lock it and do the update. So we will setup these mutexes/read-write locks and whenever a function running in seperate thread tries to update the global variables.
