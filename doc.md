@@ -41,7 +41,7 @@ Since `create_remote_printer_entry()` calls `recheck_timer()` to update when to 
 
 #### 2.2 Printer Deleted
 
-Printer deletion is relatively easy than addition. For each service removed from the network `browse_callback()` is called and it finds that particular instance in the list of printers and deletes that instance. If no discovered instances are left for the printer, it calls `remove_printer_entry()`. `remove_printer_entry()` correctly identifies that whether the printer to be deleted has a slave (checks whether it is a master of some cluster of printers), if it has slave, it makes that master of the printer. This is done to make sure that we do not delete that clusters' queue. `remove_printer_entry()` also update the status and timeout value of the printer to be deleted, so that when next time `update_cups_queues` is called, its queue gets removed.  
+Printer deletion is relatively easy than addition. For each service removed from the network `browse_callback()` is called and it finds that particular instance in the list of printers and deletes that instance. If no discovered instances are left for the printer, it calls `remove_printer_entry()`. `remove_printer_entry()` correctly identifies that whether the printer to be deleted has a slave (checks whether it is a master of some cluster of printers), if it has slave, it makes that master of the printer. This is done to make sure that we do not delete that clusters' queue. `remove_printer_entry()` also update the status and timeout value of the printer to be deleted, so that when next time `update_cups_queues()` is called, its queue gets removed.  
 
 **How will we parallelize this event**
 
@@ -49,8 +49,18 @@ To parallelize it, we will take out the code in `browse_callback()` and create a
 
 *Since printer-deletion is not much time consuming event, it could happen that creating separate threads for each service will take more time, as there is significant overhead for creating threads and using locks.
 
+#### 2.3 Jobs
+
+Jobs are processed by function `on_job_state()`, which runs as a callback in main by `g_signal_connect()`. Whenever a job is sent to a printer `g_signal_connect()` will call `on_job_state()`. Also `on_printer_state_changed()` will be called as `printer-state` changes.
+
+**How will we parallelize this event**
+
+To parallelize it, instead of calling the above named function directly, we will call another function as callback and that function will create a separate thread to call `on_job_state()` or `on_printer_state_changed()`.
+
+*Since jobs are not much time consuming event, this plan is tentative, and possibly could take more time. 
+
 #### 3. How we will handle synchronization
 
 Thread synchronization is defined as a mechanism which ensures that two or more concurrent [processes](https://en.wikipedia.org/wiki/Process_(computer_science)) or [threads](https://en.wikipedia.org/wiki/Thread_(computer_science)) do not simultaneously execute some particular program segment known as [critical section](https://en.wikipedia.org/wiki/Critical_section). Here critical section will be the global variables, i.e. we don't want that two or more threads simultaneously try to update the global variables, and if this happens integrity of the data will be compromised.
 
-To avoid all this we need to make sure that while updating some global variable, only one thread is doing that update and pthread API provides many useful tools, e.g. mutexes (`pthread_mutex_t`) and read-write Locks (`pthread_rwlock_t`). To prevent other thread from updating these variables, a thread can lock the mutex/read-write locks and when the update is complete unlock them. If a thread tries to lock an already locked mutex, it gets blocked until that mutex is unlocked by the thread that locked the mutex. As soon as it gets unlocked other thread can lock it and do the update. So we will setup these mutexes/read-write locks and whenever a function running in seperate thread tries to update the global variables.
+To avoid all this we need to make sure that while updating some global variable, only one thread is doing that update and pthread API provides many useful tools, e.g. mutexes (`pthread_mutex_t`) and read-write Locks (`pthread_rwlock_t`). To prevent other thread from updating these variables, a thread can lock the mutex/read-write locks and when the update is complete unlock them. If a thread tries to lock an already locked mutex, it gets blocked until that mutex is unlocked by the thread that locked the mutex. As soon as it gets unlocked other thread can lock it and do the update. So we will create these mutexes/read-write locks and lock them whenever a function running in seperate thread tries to update the global variables.
